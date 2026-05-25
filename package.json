@@ -1,0 +1,12 @@
+{
+  "name": "calybird",
+  "version": "0.1.0",
+  "description": "Calybird - a Node.js project",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC"
+}
