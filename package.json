@@ -3,10 +3,16 @@
   "version": "0.1.0",
   "description": "Calybird - a Node.js project",
   "main": "index.js",
+  "type": "module",
   "scripts": {
     "start": "node index.js"
   },
   "keywords": [],
   "author": "",
-  "license": "ISC"
+  "license": "ISC",
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.98.0",
+    "dotenv": "^17.4.2",
+    "express": "^5.2.1"
+  }
 }
