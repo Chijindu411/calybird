@@ -35,19 +35,48 @@
       cursor: pointer;
     }
     button:disabled { background: #93c5fd; cursor: not-allowed; }
-    #response-box {
+
+    #reminder-card {
       margin-top: 28px;
-      padding: 16px;
+      padding: 20px 24px;
       background: #fff;
       border: 1px solid #e5e7eb;
-      border-radius: 6px;
-      min-height: 60px;
-      white-space: pre-wrap;
+      border-radius: 8px;
       display: none;
     }
+    #reminder-card .card-title {
+      font-size: 1.15rem;
+      font-weight: 600;
+      margin: 0 0 16px;
+      color: #111;
+    }
+    .field {
+      display: flex;
+      align-items: baseline;
+      gap: 10px;
+      margin-bottom: 10px;
+    }
+    .field:last-child { margin-bottom: 0; }
+    .field label {
+      font-size: 0.75rem;
+      font-weight: 600;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+      color: #6b7280;
+      min-width: 40px;
+    }
+    .field span {
+      font-size: 1rem;
+      color: #111;
+    }
+
     #error-box {
-      margin-top: 12px;
-      color: #dc2626;
+      margin-top: 20px;
+      padding: 14px 16px;
+      background: #fef2f2;
+      border: 1px solid #fecaca;
+      border-radius: 6px;
+      color: #b91c1c;
       display: none;
     }
   </style>
@@ -55,50 +84,93 @@
 <body>
   <h1>Calybird</h1>
 
-  <textarea id="message-input" placeholder="Ask Claude anything..."></textarea>
+  <textarea id="message-input" placeholder="e.g. Remind me to call the dentist tomorrow at 3pm"></textarea>
   <br />
-  <button id="ask-btn">Ask Claude</button>
+  <button id="ask-btn">Set reminder</button>
 
   <div id="error-box"></div>
-  <div id="response-box"></div>
+
+  <div id="reminder-card">
+    <p class="card-title">Reminder set</p>
+    <div class="field">
+      <label>Task</label>
+      <span id="field-title"></span>
+    </div>
+    <div class="field">
+      <label>Date</label>
+      <span id="field-date"></span>
+    </div>
+    <div class="field">
+      <label>Time</label>
+      <span id="field-time"></span>
+    </div>
+  </div>
 
   <script>
     const btn = document.getElementById("ask-btn");
     const input = document.getElementById("message-input");
-    const responseBox = document.getElementById("response-box");
+    const card = document.getElementById("reminder-card");
     const errorBox = document.getElementById("error-box");
+
+    function formatDate(iso) {
+      // "2026-06-01" → "Monday, 1 June 2026"
+      const [y, m, d] = iso.split("-").map(Number);
+      return new Date(y, m - 1, d).toLocaleDateString("en-GB", {
+        weekday: "long", day: "numeric", month: "long", year: "numeric",
+      });
+    }
+
+    function formatTime(hhmm) {
+      // "14:30" → "2:30 PM"
+      const [h, m] = hhmm.split(":").map(Number);
+      const period = h < 12 ? "AM" : "PM";
+      const hour = h % 12 || 12;
+      return `${hour}:${String(m).padStart(2, "0")} ${period}`;
+    }
 
     btn.addEventListener("click", async () => {
       const message = input.value.trim();
       if (!message) return;
 
-      // Reset UI and show loading state
       btn.disabled = true;
-      btn.textContent = "Asking...";
-      responseBox.style.display = "none";
+      btn.textContent = "Parsing...";
+      card.style.display = "none";
       errorBox.style.display = "none";
 
       try {
+        const now = new Date();
+        const localDate = [
+          now.getFullYear(),
+          String(now.getMonth() + 1).padStart(2, "0"),
+          String(now.getDate()).padStart(2, "0"),
+        ].join("-");
+
         const res = await fetch("/ask", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ message }),
+          body: JSON.stringify({ message, localDate }),
         });
 
         const data = await res.json();
 
         if (!res.ok) {
-          throw new Error(data.error ?? "Something went wrong");
+          // 422 means Claude couldn't parse the reminder; everything else is unexpected
+          const friendly = res.status === 422
+            ? "Sorry, I couldn't understand that as a reminder. Try rephrasing — for example: \"Remind me to call Alex on Friday at 10am\"."
+            : (data.error ?? "Something went wrong. Please try again.");
+          throw new Error(friendly);
         }
 
-        responseBox.textContent = data.reply;
-        responseBox.style.display = "block";
+        document.getElementById("field-title").textContent = data.title;
+        document.getElementById("field-date").textContent = formatDate(data.date);
+        document.getElementById("field-time").textContent = formatTime(data.time);
+        card.style.display = "block";
       } catch (err) {
         errorBox.textContent = err.message;
         errorBox.style.display = "block";
       } finally {
         btn.disabled = false;
-        btn.textContent = "Ask Claude";
+        btn.textContent = "Set reminder";
       }
     });
   </script>
