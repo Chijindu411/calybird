@@ -86,7 +86,12 @@ Respond with ONLY the JSON object — no explanation, no markdown, no extra text
     return res.status(422).json({ error: "Could not parse reminder", raw });
   }
 
-  res.json(reminder);
+  const result = db.prepare(
+    "INSERT INTO reminders (title, date, time) VALUES (?, ?, ?)"
+  ).run(reminder.title, reminder.date, reminder.time);
+
+  const saved = db.prepare("SELECT * FROM reminders WHERE id = ?").get(result.lastInsertRowid);
+  res.status(201).json(saved);
 });
 
 // POST /reminders — create a reminder
