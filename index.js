@@ -89,5 +89,59 @@ Respond with ONLY the JSON object — no explanation, no markdown, no extra text
   res.json(reminder);
 });
 
+// POST /reminders — create a reminder
+app.post("/reminders", (req, res) => {
+  const { title, date, time } = req.body;
+
+  if (!title || typeof title !== "string") {
+    return res.status(400).json({ error: "title is required and must be a string" });
+  }
+  if (!date || !/^\d{4}-\d{2}-\d{2}$/.test(date)) {
+    return res.status(400).json({ error: "date is required (YYYY-MM-DD)" });
+  }
+  if (!time || !/^\d{2}:\d{2}$/.test(time)) {
+    return res.status(400).json({ error: "time is required (HH:MM)" });
+  }
+
+  const stmt = db.prepare(
+    "INSERT INTO reminders (title, date, time) VALUES (?, ?, ?)"
+  );
+  const result = stmt.run(title, date, time);
+  const created = db.prepare("SELECT * FROM reminders WHERE id = ?").get(result.lastInsertRowid);
+  res.status(201).json(created);
+});
+
+// GET /reminders — list all reminders sorted by date then time
+app.get("/reminders", (req, res) => {
+  const reminders = db.prepare(
+    "SELECT * FROM reminders ORDER BY date ASC, time ASC"
+  ).all();
+  res.json(reminders);
+});
+
+// PATCH /reminders/:id/complete — mark a reminder as complete
+app.patch("/reminders/:id/complete", (req, res) => {
+  const { id } = req.params;
+  const result = db.prepare(
+    "UPDATE reminders SET completed = 1 WHERE id = ?"
+  ).run(id);
+
+  if (result.changes === 0) {
+    return res.status(404).json({ error: "Reminder not found" });
+  }
+  res.json(db.prepare("SELECT * FROM reminders WHERE id = ?").get(id));
+});
+
+// DELETE /reminders/:id — delete a reminder
+app.delete("/reminders/:id", (req, res) => {
+  const { id } = req.params;
+  const result = db.prepare("DELETE FROM reminders WHERE id = ?").run(id);
+
+  if (result.changes === 0) {
+    return res.status(404).json({ error: "Reminder not found" });
+  }
+  res.status(204).send();
+});
+
 const PORT = process.env.PORT ?? 3000;
 app.listen(PORT, () => console.log(`Calybird listening on port ${PORT}`));
