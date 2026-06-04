@@ -1,6 +1,7 @@
 import "dotenv/config";
 import express from "express";
 import Anthropic from "@anthropic-ai/sdk";
+import db from "./db.js";
 
 const app = express();
 app.use(express.json());
