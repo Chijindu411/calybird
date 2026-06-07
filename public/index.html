@@ -79,6 +79,55 @@
       color: #b91c1c;
       display: none;
     }
+
+    #reminders-section {
+      margin-top: 48px;
+    }
+    #reminders-section h2 {
+      font-size: 1.1rem;
+      margin: 0 0 12px;
+    }
+    #reminders-list {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    .reminder-row {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 12px 14px;
+      background: #fff;
+      border: 1px solid #e5e7eb;
+      border-radius: 6px;
+    }
+    .reminder-row.completed {
+      opacity: 0.5;
+    }
+    .reminder-info {
+      flex: 1;
+    }
+    .reminder-title {
+      font-weight: 500;
+    }
+    .reminder-meta {
+      font-size: 0.85rem;
+      color: #6b7280;
+      margin-top: 2px;
+    }
+    .reminder-row button {
+      margin-top: 0;
+      padding: 6px 12px;
+      font-size: 0.85rem;
+    }
+    .btn-complete { background: #16a34a; }
+    .btn-complete:hover { background: #15803d; }
+    .btn-delete  { background: #dc2626; }
+    .btn-delete:hover  { background: #b91c1c; }
+    #reminders-empty {
+      font-size: 0.9rem;
+      color: #9ca3af;
+    }
   </style>
 </head>
 <body>
@@ -106,14 +155,19 @@
     </div>
   </div>
 
+  <section id="reminders-section">
+    <h2>Upcoming Reminders</h2>
+    <div id="reminders-list"></div>
+  </section>
+
   <script>
     const btn = document.getElementById("ask-btn");
     const input = document.getElementById("message-input");
     const card = document.getElementById("reminder-card");
     const errorBox = document.getElementById("error-box");
+    const remindersList = document.getElementById("reminders-list");
 
     function formatDate(iso) {
-      // "2026-06-01" → "Monday, 1 June 2026"
       const [y, m, d] = iso.split("-").map(Number);
       return new Date(y, m - 1, d).toLocaleDateString("en-GB", {
         weekday: "long", day: "numeric", month: "long", year: "numeric",
@@ -121,11 +175,49 @@
     }
 
     function formatTime(hhmm) {
-      // "14:30" → "2:30 PM"
       const [h, m] = hhmm.split(":").map(Number);
       const period = h < 12 ? "AM" : "PM";
       const hour = h % 12 || 12;
       return `${hour}:${String(m).padStart(2, "0")} ${period}`;
+    }
+
+    async function loadReminders() {
+      const res = await fetch("/reminders");
+      const reminders = await res.json();
+
+      remindersList.innerHTML = "";
+
+      if (reminders.length === 0) {
+        remindersList.innerHTML = '<p id="reminders-empty">No reminders yet.</p>';
+        return;
+      }
+
+      for (const r of reminders) {
+        const row = document.createElement("div");
+        row.className = "reminder-row" + (r.completed ? " completed" : "");
+        row.dataset.id = r.id;
+
+        row.innerHTML = `
+          <div class="reminder-info">
+            <div class="reminder-title">${r.title}</div>
+            <div class="reminder-meta">${formatDate(r.date)} at ${formatTime(r.time)}</div>
+          </div>
+          ${!r.completed ? `<button class="btn-complete">Complete</button>` : ""}
+          <button class="btn-delete">Delete</button>
+        `;
+
+        row.querySelector(".btn-complete")?.addEventListener("click", async () => {
+          await fetch(`/reminders/${r.id}/complete`, { method: "PATCH" });
+          loadReminders();
+        });
+
+        row.querySelector(".btn-delete").addEventListener("click", async () => {
+          await fetch(`/reminders/${r.id}`, { method: "DELETE" });
+          loadReminders();
+        });
+
+        remindersList.appendChild(row);
+      }
     }
 
     btn.addEventListener("click", async () => {
@@ -154,7 +246,6 @@
         const data = await res.json();
 
         if (!res.ok) {
-          // 422 means Claude couldn't parse the reminder; everything else is unexpected
           const friendly = res.status === 422
             ? "Sorry, I couldn't understand that as a reminder. Try rephrasing — for example: \"Remind me to call Alex on Friday at 10am\"."
             : (data.error ?? "Something went wrong. Please try again.");
@@ -165,6 +256,7 @@
         document.getElementById("field-date").textContent = formatDate(data.date);
         document.getElementById("field-time").textContent = formatTime(data.time);
         card.style.display = "block";
+        loadReminders();
       } catch (err) {
         errorBox.textContent = err.message;
         errorBox.style.display = "block";
@@ -173,6 +265,9 @@
         btn.textContent = "Set reminder";
       }
     });
+
+    // Load on page open
+    loadReminders();
   </script>
 </body>
 </html>
