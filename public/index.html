@@ -211,11 +211,10 @@
       return 1;                                        // upcoming incomplete → middle
     }
 
-    async function loadReminders() {
-      const res = await fetch("/reminders");
-      const reminders = await res.json();
+    let cachedReminders = [];
 
-      reminders.sort((a, b) => {
+    function renderReminders(reminders) {
+      const sorted = [...reminders].sort((a, b) => {
         const groupDiff = sortGroup(a) - sortGroup(b);
         if (groupDiff !== 0) return groupDiff;
         return reminderTimestamp(a) - reminderTimestamp(b);
@@ -223,12 +222,12 @@
 
       remindersList.innerHTML = "";
 
-      if (reminders.length === 0) {
+      if (sorted.length === 0) {
         remindersList.innerHTML = '<p id="reminders-empty">No reminders yet.</p>';
         return;
       }
 
-      for (const r of reminders) {
+      for (const r of sorted) {
         const row = document.createElement("div");
         const pastDue = !r.completed && isPastDue(r.date, r.time);
         row.className = "reminder-row" +
@@ -258,6 +257,12 @@
 
         remindersList.appendChild(row);
       }
+    }
+
+    async function loadReminders() {
+      const res = await fetch("/reminders");
+      cachedReminders = await res.json();
+      renderReminders(cachedReminders);
     }
 
     btn.addEventListener("click", async () => {
@@ -306,8 +311,10 @@
       }
     });
 
-    // Load on page open
+    // Load on page open, then re-render from cache every 60 seconds
     loadReminders();
+    const rerenderInterval = setInterval(() => renderReminders(cachedReminders), 60000);
+    window.addEventListener("pagehide", () => clearInterval(rerenderInterval));
   </script>
 </body>
 </html>
