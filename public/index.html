@@ -104,6 +104,18 @@
     .reminder-row.completed {
       opacity: 0.5;
     }
+    .reminder-row.past-due {
+      background: #fff7ed;
+      border-color: #fed7aa;
+    }
+    .past-due-label {
+      font-size: 0.75rem;
+      font-weight: 600;
+      color: #c2410c;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      margin-top: 3px;
+    }
     .reminder-info {
       flex: 1;
     }
@@ -181,6 +193,12 @@
       return `${hour}:${String(m).padStart(2, "0")} ${period}`;
     }
 
+    function isPastDue(dateStr, timeStr) {
+      const [y, m, d] = dateStr.split("-").map(Number);
+      const [h, min] = timeStr.split(":").map(Number);
+      return new Date(y, m - 1, d, h, min) < new Date();
+    }
+
     async function loadReminders() {
       const res = await fetch("/reminders");
       const reminders = await res.json();
@@ -194,13 +212,17 @@
 
       for (const r of reminders) {
         const row = document.createElement("div");
-        row.className = "reminder-row" + (r.completed ? " completed" : "");
+        const pastDue = !r.completed && isPastDue(r.date, r.time);
+        row.className = "reminder-row" +
+          (r.completed ? " completed" : "") +
+          (pastDue ? " past-due" : "");
         row.dataset.id = r.id;
 
         row.innerHTML = `
           <div class="reminder-info">
             <div class="reminder-title">${r.title}</div>
             <div class="reminder-meta">${formatDate(r.date)} at ${formatTime(r.time)}</div>
+            ${pastDue ? `<div class="past-due-label">Past due</div>` : ""}
           </div>
           ${!r.completed ? `<button class="btn-complete">Complete</button>` : ""}
           <button class="btn-delete">Delete</button>
