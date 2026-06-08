@@ -199,9 +199,27 @@
       return new Date(y, m - 1, d, h, min) < new Date();
     }
 
+    function reminderTimestamp(r) {
+      const [y, m, d] = r.date.split("-").map(Number);
+      const [h, min] = r.time.split(":").map(Number);
+      return new Date(y, m - 1, d, h, min).getTime();
+    }
+
+    function sortGroup(r) {
+      if (r.completed)                      return 2; // completed → last
+      if (isPastDue(r.date, r.time))        return 0; // past-due incomplete → first
+      return 1;                                        // upcoming incomplete → middle
+    }
+
     async function loadReminders() {
       const res = await fetch("/reminders");
       const reminders = await res.json();
+
+      reminders.sort((a, b) => {
+        const groupDiff = sortGroup(a) - sortGroup(b);
+        if (groupDiff !== 0) return groupDiff;
+        return reminderTimestamp(a) - reminderTimestamp(b);
+      });
 
       remindersList.innerHTML = "";
 
