@@ -1,7 +1,10 @@
 import "dotenv/config";
 import express from "express";
 import Anthropic from "@anthropic-ai/sdk";
+import bcrypt from "bcrypt";
 import db from "./db.js";
+
+const SALT_ROUNDS = 12;
 
 const app = express();
 app.use(express.json());
@@ -146,6 +149,55 @@ app.delete("/reminders/:id", (req, res) => {
     return res.status(404).json({ error: "Reminder not found" });
   }
   res.status(204).send();
+});
+
+// POST /signup — create a new user account
+app.post("/signup", async (req, res) => {
+  const { email, password } = req.body;
+
+  if (!email || typeof email !== "string" || !email.includes("@")) {
+    return res.status(400).json({ error: "A valid email is required" });
+  }
+  if (!password || typeof password !== "string" || password.length < 8) {
+    return res.status(400).json({ error: "Password must be at least 8 characters" });
+  }
+
+  const existing = db.prepare("SELECT id FROM users WHERE email = ?").get(email);
+  if (existing) {
+    return res.status(409).json({ error: "An account with that email already exists" });
+  }
+
+  const password_hash = await bcrypt.hash(password, SALT_ROUNDS);
+  const result = db.prepare(
+    "INSERT INTO users (email, password_hash) VALUES (?, ?)"
+  ).run(email, password_hash);
+
+  const user = db.prepare("SELECT id, email, created_at FROM users WHERE id = ?")
+    .get(result.lastInsertRowid);
+  res.status(201).json(user);
+});
+
+// POST /login — verify credentials
+app.post("/login", async (req, res) => {
+  const { email, password } = req.body;
+
+  if (!email || !password) {
+    return res.status(400).json({ error: "email and password are required" });
+  }
+
+  const user = db.prepare("SELECT * FROM users WHERE email = ?").get(email);
+  // Use the same error message whether the email is unknown or the password is wrong,
+  // to avoid leaking which emails are registered.
+  if (!user) {
+    return res.status(401).json({ error: "Invalid email or password" });
+  }
+
+  const match = await bcrypt.compare(password, user.password_hash);
+  if (!match) {
+    return res.status(401).json({ error: "Invalid email or password" });
+  }
+
+  res.json({ id: user.id, email: user.email });
 });
 
 const PORT = process.env.PORT ?? 3000;
