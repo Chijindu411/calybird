@@ -2,13 +2,28 @@ import "dotenv/config";
 import express from "express";
 import Anthropic from "@anthropic-ai/sdk";
 import bcrypt from "bcrypt";
+import session from "express-session";
+import SqliteStoreFactory from "better-sqlite3-session-store";
 import db from "./db.js";
 
 const SALT_ROUNDS = 12;
+const SqliteStore = SqliteStoreFactory(session);
 
 const app = express();
 app.use(express.json());
 app.use(express.static("public"));
+app.use(session({
+  store: new SqliteStore({ client: db, expired: { clear: true, intervalMs: 15 * 60 * 1000 } }),
+  secret: process.env.SESSION_SECRET,
+  resave: false,
+  saveUninitialized: false,
+  cookie: {
+    httpOnly: true,
+    sameSite: "strict",
+    secure: false,
+    maxAge: 7 * 24 * 60 * 60 * 1000,
+  },
+}));
 
 const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
@@ -197,7 +212,27 @@ app.post("/login", async (req, res) => {
     return res.status(401).json({ error: "Invalid email or password" });
   }
 
+  req.session.userId = user.id;
   res.json({ id: user.id, email: user.email });
+});
+
+// POST /logout — destroy the session
+app.post("/logout", (req, res) => {
+  req.session.destroy((err) => {
+    if (err) return res.status(500).json({ error: "Could not log out" });
+    res.clearCookie("connect.sid");
+    res.json({ message: "Logged out" });
+  });
+});
+
+// GET /me — return the logged-in user, or 401 if no valid session
+app.get("/me", (req, res) => {
+  if (!req.session.userId) {
+    return res.status(401).json({ error: "Not logged in" });
+  }
+  const user = db.prepare("SELECT id, email FROM users WHERE id = ?").get(req.session.userId);
+  if (!user) return res.status(401).json({ error: "Not logged in" });
+  res.json(user);
 });
 
 const PORT = process.env.PORT ?? 3000;
