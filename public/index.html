@@ -34,8 +34,86 @@
       border-radius: 6px;
       cursor: pointer;
     }
+    button:hover { background: #1d4ed8; }
     button:disabled { background: #93c5fd; cursor: not-allowed; }
 
+    /* ---- Auth view ---- */
+    #auth-view { max-width: 400px; }
+    .auth-panel h2 { font-size: 1.2rem; margin: 0 0 20px; }
+    .form-group { margin-bottom: 14px; }
+    .form-group label {
+      display: block;
+      font-size: 0.85rem;
+      font-weight: 600;
+      margin-bottom: 4px;
+      color: #374151;
+    }
+    .form-group input {
+      width: 100%;
+      padding: 9px 12px;
+      font-size: 1rem;
+      border: 1px solid #ccc;
+      border-radius: 6px;
+      box-sizing: border-box;
+    }
+    .form-group input:focus {
+      outline: 2px solid #2563eb;
+      border-color: transparent;
+    }
+    .auth-error {
+      margin-bottom: 12px;
+      padding: 10px 12px;
+      background: #fef2f2;
+      border: 1px solid #fecaca;
+      border-radius: 6px;
+      color: #b91c1c;
+      font-size: 0.9rem;
+      display: none;
+    }
+    .auth-notice {
+      margin-bottom: 12px;
+      padding: 10px 12px;
+      background: #f0fdf4;
+      border: 1px solid #bbf7d0;
+      border-radius: 6px;
+      color: #15803d;
+      font-size: 0.9rem;
+      display: none;
+    }
+    .auth-switch {
+      margin-top: 16px;
+      font-size: 0.9rem;
+      color: #6b7280;
+    }
+    .auth-switch a {
+      color: #2563eb;
+      text-decoration: none;
+      cursor: pointer;
+    }
+    .auth-switch a:hover { text-decoration: underline; }
+
+    /* ---- User bar ---- */
+    #user-bar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 24px;
+      padding: 10px 14px;
+      background: #fff;
+      border: 1px solid #e5e7eb;
+      border-radius: 6px;
+      font-size: 0.9rem;
+    }
+    #user-email { color: #374151; }
+    #logout-btn {
+      margin-top: 0;
+      padding: 6px 14px;
+      font-size: 0.85rem;
+      background: #6b7280;
+    }
+    #logout-btn:hover { background: #4b5563; }
+
+    /* ---- Reminder card ---- */
     #reminder-card {
       margin-top: 28px;
       padding: 20px 24px;
@@ -65,10 +143,7 @@
       color: #6b7280;
       min-width: 40px;
     }
-    .field span {
-      font-size: 1rem;
-      color: #111;
-    }
+    .field span { font-size: 1rem; color: #111; }
 
     #error-box {
       margin-top: 20px;
@@ -80,18 +155,10 @@
       display: none;
     }
 
-    #reminders-section {
-      margin-top: 48px;
-    }
-    #reminders-section h2 {
-      font-size: 1.1rem;
-      margin: 0 0 12px;
-    }
-    #reminders-list {
-      display: flex;
-      flex-direction: column;
-      gap: 8px;
-    }
+    /* ---- Reminders list ---- */
+    #reminders-section { margin-top: 48px; }
+    #reminders-section h2 { font-size: 1.1rem; margin: 0 0 12px; }
+    #reminders-list { display: flex; flex-direction: column; gap: 8px; }
     .reminder-row {
       display: flex;
       align-items: center;
@@ -101,13 +168,8 @@
       border: 1px solid #e5e7eb;
       border-radius: 6px;
     }
-    .reminder-row.completed {
-      opacity: 0.5;
-    }
-    .reminder-row.past-due {
-      background: #fff7ed;
-      border-color: #fed7aa;
-    }
+    .reminder-row.completed { opacity: 0.5; }
+    .reminder-row.past-due { background: #fff7ed; border-color: #fed7aa; }
     .past-due-label {
       font-size: 0.75rem;
       font-weight: 600;
@@ -116,69 +178,262 @@
       letter-spacing: 0.05em;
       margin-top: 3px;
     }
-    .reminder-info {
-      flex: 1;
-    }
-    .reminder-title {
-      font-weight: 500;
-    }
-    .reminder-meta {
-      font-size: 0.85rem;
-      color: #6b7280;
-      margin-top: 2px;
-    }
-    .reminder-row button {
-      margin-top: 0;
-      padding: 6px 12px;
-      font-size: 0.85rem;
-    }
+    .reminder-info { flex: 1; }
+    .reminder-title { font-weight: 500; }
+    .reminder-meta { font-size: 0.85rem; color: #6b7280; margin-top: 2px; }
+    .reminder-row button { margin-top: 0; padding: 6px 12px; font-size: 0.85rem; }
     .btn-complete { background: #16a34a; }
     .btn-complete:hover { background: #15803d; }
-    .btn-delete  { background: #dc2626; }
-    .btn-delete:hover  { background: #b91c1c; }
-    #reminders-empty {
-      font-size: 0.9rem;
-      color: #9ca3af;
-    }
+    .btn-delete { background: #dc2626; }
+    .btn-delete:hover { background: #b91c1c; }
+    #reminders-empty { font-size: 0.9rem; color: #9ca3af; }
   </style>
 </head>
 <body>
   <h1>Calybird</h1>
 
-  <textarea id="message-input" placeholder="e.g. Remind me to call the dentist tomorrow at 3pm"></textarea>
-  <br />
-  <button id="ask-btn">Set reminder</button>
+  <!-- Auth view: shown when logged out -->
+  <div id="auth-view">
 
-  <div id="error-box"></div>
+    <div id="login-panel" class="auth-panel">
+      <h2>Log in</h2>
+      <div class="auth-notice" id="login-notice"></div>
+      <div class="auth-error" id="login-error"></div>
+      <div class="form-group">
+        <label for="login-email">Email</label>
+        <input type="email" id="login-email" autocomplete="email" />
+      </div>
+      <div class="form-group">
+        <label for="login-password">Password</label>
+        <input type="password" id="login-password" autocomplete="current-password" />
+      </div>
+      <button id="login-btn">Log in</button>
+      <p class="auth-switch">Don't have an account? <a id="show-signup">Sign up</a></p>
+    </div>
 
-  <div id="reminder-card">
-    <p class="card-title">Reminder set</p>
-    <div class="field">
-      <label>Task</label>
-      <span id="field-title"></span>
+    <div id="signup-panel" class="auth-panel" style="display:none">
+      <h2>Create account</h2>
+      <div class="auth-error" id="signup-error"></div>
+      <div class="form-group">
+        <label for="signup-email">Email</label>
+        <input type="email" id="signup-email" autocomplete="email" />
+      </div>
+      <div class="form-group">
+        <label for="signup-password">Password</label>
+        <input type="password" id="signup-password" autocomplete="new-password" />
+      </div>
+      <button id="signup-btn">Create account</button>
+      <p class="auth-switch">Already have an account? <a id="show-login">Log in</a></p>
     </div>
-    <div class="field">
-      <label>Date</label>
-      <span id="field-date"></span>
-    </div>
-    <div class="field">
-      <label>Time</label>
-      <span id="field-time"></span>
-    </div>
+
   </div>
 
-  <section id="reminders-section">
-    <h2>Upcoming Reminders</h2>
-    <div id="reminders-list"></div>
-  </section>
+  <!-- App view: shown when logged in -->
+  <div id="app-view" style="display:none">
+
+    <div id="user-bar">
+      <span id="user-email"></span>
+      <button id="logout-btn">Log out</button>
+    </div>
+
+    <textarea id="message-input" placeholder="e.g. Remind me to call the dentist tomorrow at 3pm"></textarea>
+    <br />
+    <button id="ask-btn">Set reminder</button>
+
+    <div id="error-box"></div>
+
+    <div id="reminder-card">
+      <p class="card-title">Reminder set</p>
+      <div class="field">
+        <label>Task</label>
+        <span id="field-title"></span>
+      </div>
+      <div class="field">
+        <label>Date</label>
+        <span id="field-date"></span>
+      </div>
+      <div class="field">
+        <label>Time</label>
+        <span id="field-time"></span>
+      </div>
+    </div>
+
+    <section id="reminders-section">
+      <h2>Upcoming Reminders</h2>
+      <div id="reminders-list"></div>
+    </section>
+
+  </div>
 
   <script>
-    const btn = document.getElementById("ask-btn");
-    const input = document.getElementById("message-input");
-    const card = document.getElementById("reminder-card");
-    const errorBox = document.getElementById("error-box");
+    // ---- DOM references ----
+    const authView     = document.getElementById("auth-view");
+    const appView      = document.getElementById("app-view");
+    const loginPanel   = document.getElementById("login-panel");
+    const signupPanel  = document.getElementById("signup-panel");
+    const loginError   = document.getElementById("login-error");
+    const loginNotice  = document.getElementById("login-notice");
+    const signupError  = document.getElementById("signup-error");
+    const loginBtn     = document.getElementById("login-btn");
+    const signupBtn    = document.getElementById("signup-btn");
+    const askBtn       = document.getElementById("ask-btn");
+    const input        = document.getElementById("message-input");
+    const card         = document.getElementById("reminder-card");
+    const errorBox     = document.getElementById("error-box");
     const remindersList = document.getElementById("reminders-list");
 
+    // ---- View transitions ----
+    let rerenderInterval = null;
+
+    function showAppView(email) {
+      authView.style.display = "none";
+      appView.style.display = "block";
+      document.getElementById("user-email").textContent = email;
+      loadReminders();
+      rerenderInterval = setInterval(() => renderReminders(cachedReminders), 60000);
+    }
+
+    function showAuthView() {
+      appView.style.display = "none";
+      authView.style.display = "block";
+      clearInterval(rerenderInterval);
+      rerenderInterval = null;
+      // Reset to login panel with clean state
+      signupPanel.style.display = "none";
+      loginPanel.style.display = "block";
+      document.getElementById("login-email").value = "";
+      document.getElementById("login-password").value = "";
+      loginError.style.display = "none";
+      loginNotice.style.display = "none";
+    }
+
+    // ---- Panel toggle ----
+    document.getElementById("show-signup").addEventListener("click", () => {
+      loginPanel.style.display = "none";
+      signupPanel.style.display = "block";
+      signupError.style.display = "none";
+      document.getElementById("signup-email").value = "";
+      document.getElementById("signup-password").value = "";
+    });
+
+    document.getElementById("show-login").addEventListener("click", () => {
+      signupPanel.style.display = "none";
+      loginPanel.style.display = "block";
+      loginError.style.display = "none";
+      loginNotice.style.display = "none";
+    });
+
+    // ---- Login ----
+    loginBtn.addEventListener("click", async () => {
+      const email    = document.getElementById("login-email").value.trim();
+      const password = document.getElementById("login-password").value;
+      loginError.style.display = "none";
+      loginNotice.style.display = "none";
+
+      if (!email || !password) {
+        loginError.textContent = "Please enter your email and password.";
+        loginError.style.display = "block";
+        return;
+      }
+
+      loginBtn.disabled = true;
+      loginBtn.textContent = "Logging in…";
+
+      try {
+        const res = await fetch("/login", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          credentials: "include",
+          body: JSON.stringify({ email, password }),
+        });
+        const data = await res.json();
+        if (!res.ok) {
+          loginError.textContent = data.error ?? "Login failed. Please try again.";
+          loginError.style.display = "block";
+          return;
+        }
+        showAppView(data.email);
+      } catch {
+        loginError.textContent = "Network error. Please try again.";
+        loginError.style.display = "block";
+      } finally {
+        loginBtn.disabled = false;
+        loginBtn.textContent = "Log in";
+      }
+    });
+
+    // Submit login form on Enter key
+    document.getElementById("login-password").addEventListener("keydown", (e) => {
+      if (e.key === "Enter") loginBtn.click();
+    });
+
+    // ---- Signup ----
+    signupBtn.addEventListener("click", async () => {
+      const email    = document.getElementById("signup-email").value.trim();
+      const password = document.getElementById("signup-password").value;
+      signupError.style.display = "none";
+
+      if (!email || !password) {
+        signupError.textContent = "Please enter your email and password.";
+        signupError.style.display = "block";
+        return;
+      }
+
+      signupBtn.disabled = true;
+      signupBtn.textContent = "Creating account…";
+
+      try {
+        const res = await fetch("/signup", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          credentials: "include",
+          body: JSON.stringify({ email, password }),
+        });
+        const data = await res.json();
+        if (!res.ok) {
+          signupError.textContent = data.error ?? "Signup failed. Please try again.";
+          signupError.style.display = "block";
+          return;
+        }
+
+        // Auto-login immediately after account creation
+        const loginRes = await fetch("/login", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          credentials: "include",
+          body: JSON.stringify({ email, password }),
+        });
+        const loginData = await loginRes.json();
+        if (loginRes.ok) {
+          showAppView(loginData.email);
+        } else {
+          // Extremely unlikely — fall back to login form with a success notice
+          signupPanel.style.display = "none";
+          loginPanel.style.display = "block";
+          loginNotice.textContent = "Account created! Please log in.";
+          loginNotice.style.display = "block";
+        }
+      } catch {
+        signupError.textContent = "Network error. Please try again.";
+        signupError.style.display = "block";
+      } finally {
+        signupBtn.disabled = false;
+        signupBtn.textContent = "Create account";
+      }
+    });
+
+    // Submit signup form on Enter key
+    document.getElementById("signup-password").addEventListener("keydown", (e) => {
+      if (e.key === "Enter") signupBtn.click();
+    });
+
+    // ---- Logout ----
+    document.getElementById("logout-btn").addEventListener("click", async () => {
+      await fetch("/logout", { method: "POST", credentials: "include" });
+      showAuthView();
+    });
+
+    // ---- Reminder helpers ----
     function formatDate(iso) {
       const [y, m, d] = iso.split("-").map(Number);
       return new Date(y, m - 1, d).toLocaleDateString("en-GB", {
@@ -206,9 +461,9 @@
     }
 
     function sortGroup(r) {
-      if (r.completed)                      return 2; // completed → last
-      if (isPastDue(r.date, r.time))        return 0; // past-due incomplete → first
-      return 1;                                        // upcoming incomplete → middle
+      if (r.completed)               return 2;
+      if (isPastDue(r.date, r.time)) return 0;
+      return 1;
     }
 
     let cachedReminders = [];
@@ -232,7 +487,7 @@
         const pastDue = !r.completed && isPastDue(r.date, r.time);
         row.className = "reminder-row" +
           (r.completed ? " completed" : "") +
-          (pastDue ? " past-due" : "");
+          (pastDue     ? " past-due"  : "");
         row.dataset.id = r.id;
 
         row.innerHTML = `
@@ -246,12 +501,18 @@
         `;
 
         row.querySelector(".btn-complete")?.addEventListener("click", async () => {
-          await fetch(`/reminders/${r.id}/complete`, { method: "PATCH" });
+          await fetch(`/reminders/${r.id}/complete`, {
+            method: "PATCH",
+            credentials: "include",
+          });
           loadReminders();
         });
 
         row.querySelector(".btn-delete").addEventListener("click", async () => {
-          await fetch(`/reminders/${r.id}`, { method: "DELETE" });
+          await fetch(`/reminders/${r.id}`, {
+            method: "DELETE",
+            credentials: "include",
+          });
           loadReminders();
         });
 
@@ -260,17 +521,18 @@
     }
 
     async function loadReminders() {
-      const res = await fetch("/reminders");
+      const res = await fetch("/reminders", { credentials: "include" });
       cachedReminders = await res.json();
       renderReminders(cachedReminders);
     }
 
-    btn.addEventListener("click", async () => {
+    // ---- Ask button ----
+    askBtn.addEventListener("click", async () => {
       const message = input.value.trim();
       if (!message) return;
 
-      btn.disabled = true;
-      btn.textContent = "Parsing...";
+      askBtn.disabled = true;
+      askBtn.textContent = "Parsing…";
       card.style.display = "none";
       errorBox.style.display = "none";
 
@@ -285,6 +547,7 @@
         const res = await fetch("/ask", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
+          credentials: "include",
           body: JSON.stringify({ message, localDate }),
         });
 
@@ -298,22 +561,34 @@
         }
 
         document.getElementById("field-title").textContent = data.title;
-        document.getElementById("field-date").textContent = formatDate(data.date);
-        document.getElementById("field-time").textContent = formatTime(data.time);
+        document.getElementById("field-date").textContent  = formatDate(data.date);
+        document.getElementById("field-time").textContent  = formatTime(data.time);
         card.style.display = "block";
+        input.value = "";
         loadReminders();
       } catch (err) {
         errorBox.textContent = err.message;
         errorBox.style.display = "block";
       } finally {
-        btn.disabled = false;
-        btn.textContent = "Set reminder";
+        askBtn.disabled = false;
+        askBtn.textContent = "Set reminder";
       }
     });
 
-    // Load on page open, then re-render from cache every 60 seconds
-    loadReminders();
-    const rerenderInterval = setInterval(() => renderReminders(cachedReminders), 60000);
+    // ---- Boot: restore session if one already exists ----
+    (async () => {
+      try {
+        const res = await fetch("/me", { credentials: "include" });
+        if (res.ok) {
+          const user = await res.json();
+          showAppView(user.email);
+        }
+        // 401 → auth-view is already visible by default
+      } catch {
+        // Network error — stay on auth-view
+      }
+    })();
+
     window.addEventListener("pagehide", () => clearInterval(rerenderInterval));
   </script>
 </body>

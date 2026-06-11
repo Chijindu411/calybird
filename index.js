@@ -27,6 +27,17 @@ app.use(session({
 
 const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
+function requireAuth(req, res, next) {
+  if (!req.session.userId) {
+    return res.status(401).json({ error: "Authentication required" });
+  }
+  next();
+}
+
+// All /reminders and /ask routes require a valid session.
+app.use("/reminders", requireAuth);
+app.use("/ask", requireAuth);
+
 function buildDateTable(localDateISO) {
   const [y, m, d] = localDateISO.split("-").map(Number);
   const base = new Date(y, m - 1, d);
@@ -105,8 +116,8 @@ Respond with ONLY the JSON object — no explanation, no markdown, no extra text
   }
 
   const result = db.prepare(
-    "INSERT INTO reminders (title, date, time) VALUES (?, ?, ?)"
-  ).run(reminder.title, reminder.date, reminder.time);
+    "INSERT INTO reminders (title, date, time, user_id) VALUES (?, ?, ?, ?)"
+  ).run(reminder.title, reminder.date, reminder.time, req.session.userId);
 
   const saved = db.prepare("SELECT * FROM reminders WHERE id = ?").get(result.lastInsertRowid);
   res.status(201).json(saved);
@@ -127,9 +138,9 @@ app.post("/reminders", (req, res) => {
   }
 
   const stmt = db.prepare(
-    "INSERT INTO reminders (title, date, time) VALUES (?, ?, ?)"
+    "INSERT INTO reminders (title, date, time, user_id) VALUES (?, ?, ?, ?)"
   );
-  const result = stmt.run(title, date, time);
+  const result = stmt.run(title, date, time, req.session.userId);
   const created = db.prepare("SELECT * FROM reminders WHERE id = ?").get(result.lastInsertRowid);
   res.status(201).json(created);
 });
@@ -137,8 +148,8 @@ app.post("/reminders", (req, res) => {
 // GET /reminders — list all reminders sorted by date then time
 app.get("/reminders", (req, res) => {
   const reminders = db.prepare(
-    "SELECT * FROM reminders ORDER BY date ASC, time ASC"
-  ).all();
+    "SELECT * FROM reminders WHERE user_id = ? ORDER BY date ASC, time ASC"
+  ).all(req.session.userId);
   res.json(reminders);
 });
 
@@ -146,19 +157,19 @@ app.get("/reminders", (req, res) => {
 app.patch("/reminders/:id/complete", (req, res) => {
   const { id } = req.params;
   const result = db.prepare(
-    "UPDATE reminders SET completed = 1 WHERE id = ?"
-  ).run(id);
+    "UPDATE reminders SET completed = 1 WHERE id = ? AND user_id = ?"
+  ).run(id, req.session.userId);
 
   if (result.changes === 0) {
     return res.status(404).json({ error: "Reminder not found" });
   }
-  res.json(db.prepare("SELECT * FROM reminders WHERE id = ?").get(id));
+  res.json(db.prepare("SELECT * FROM reminders WHERE id = ? AND user_id = ?").get(id, req.session.userId));
 });
 
 // DELETE /reminders/:id — delete a reminder
 app.delete("/reminders/:id", (req, res) => {
   const { id } = req.params;
-  const result = db.prepare("DELETE FROM reminders WHERE id = ?").run(id);
+  const result = db.prepare("DELETE FROM reminders WHERE id = ? AND user_id = ?").run(id, req.session.userId);
 
   if (result.changes === 0) {
     return res.status(404).json({ error: "Reminder not found" });
