@@ -63,7 +63,7 @@ function buildDateTable(localDateISO) {
   return { todayISO: fmt(base), table: lines.join("\n") };
 }
 
-app.post("/ask", async (req, res) => {
+app.post("/ask", async (req, res, next) => {
   const { message, localDate } = req.body;
 
   if (!message || typeof message !== "string") {
@@ -74,9 +74,10 @@ app.post("/ask", async (req, res) => {
     return res.status(400).json({ error: "localDate field is required (YYYY-MM-DD)" });
   }
 
-  const { todayISO, table } = buildDateTable(localDate);
+  try {
+    const { todayISO, table } = buildDateTable(localDate);
 
-  const systemPrompt = `Today's date is ${todayISO}.
+    const systemPrompt = `Today's date is ${todayISO}.
 
 You are a reminder parser. Extract the reminder details from the user's message and respond ONLY with a JSON object in this exact format:
 {"title":"...","date":"YYYY-MM-DD","time":"HH:MM"}
@@ -91,36 +92,39 @@ Rules:
 
 Respond with ONLY the JSON object — no explanation, no markdown, no extra text.`;
 
-  const response = await client.messages.create({
-    model: "claude-opus-4-7",
-    max_tokens: 256,
-    system: [
-      {
-        type: "text",
-        text: systemPrompt,
-        cache_control: { type: "ephemeral" },
-      },
-    ],
-    messages: [{ role: "user", content: message }],
-  });
+    const response = await client.messages.create({
+      model: "claude-opus-4-7",
+      max_tokens: 256,
+      system: [
+        {
+          type: "text",
+          text: systemPrompt,
+          cache_control: { type: "ephemeral" },
+        },
+      ],
+      messages: [{ role: "user", content: message }],
+    });
 
-  const raw = response.content.find((block) => block.type === "text")?.text ?? "";
+    const raw = response.content.find((block) => block.type === "text")?.text ?? "";
 
-  // Slice out the first {...} block in case Claude adds surrounding prose or markdown fences.
-  const match = raw.match(/\{[\s\S]*\}/);
-  let reminder;
-  try {
-    reminder = JSON.parse(match ? match[0] : raw);
-  } catch {
-    return res.status(422).json({ error: "Could not parse reminder", raw });
+    // Slice out the first {...} block in case Claude adds surrounding prose or markdown fences.
+    const match = raw.match(/\{[\s\S]*\}/);
+    let reminder;
+    try {
+      reminder = JSON.parse(match ? match[0] : raw);
+    } catch {
+      return res.status(422).json({ error: "Could not parse reminder", raw });
+    }
+
+    const result = db.prepare(
+      "INSERT INTO reminders (title, date, time, user_id) VALUES (?, ?, ?, ?)"
+    ).run(reminder.title, reminder.date, reminder.time, req.session.userId);
+
+    const saved = db.prepare("SELECT * FROM reminders WHERE id = ?").get(result.lastInsertRowid);
+    res.status(201).json(saved);
+  } catch (err) {
+    next(err);
   }
-
-  const result = db.prepare(
-    "INSERT INTO reminders (title, date, time, user_id) VALUES (?, ?, ?, ?)"
-  ).run(reminder.title, reminder.date, reminder.time, req.session.userId);
-
-  const saved = db.prepare("SELECT * FROM reminders WHERE id = ?").get(result.lastInsertRowid);
-  res.status(201).json(saved);
 });
 
 // POST /reminders — create a reminder
@@ -178,7 +182,7 @@ app.delete("/reminders/:id", (req, res) => {
 });
 
 // POST /signup — create a new user account
-app.post("/signup", async (req, res) => {
+app.post("/signup", async (req, res, next) => {
   const { email, password } = req.body;
 
   if (!email || typeof email !== "string" || !email.includes("@")) {
@@ -188,43 +192,51 @@ app.post("/signup", async (req, res) => {
     return res.status(400).json({ error: "Password must be at least 8 characters" });
   }
 
-  const existing = db.prepare("SELECT id FROM users WHERE email = ?").get(email);
-  if (existing) {
-    return res.status(409).json({ error: "An account with that email already exists" });
+  try {
+    const existing = db.prepare("SELECT id FROM users WHERE email = ?").get(email);
+    if (existing) {
+      return res.status(409).json({ error: "An account with that email already exists" });
+    }
+
+    const password_hash = await bcrypt.hash(password, SALT_ROUNDS);
+    const result = db.prepare(
+      "INSERT INTO users (email, password_hash) VALUES (?, ?)"
+    ).run(email, password_hash);
+
+    const user = db.prepare("SELECT id, email, created_at FROM users WHERE id = ?")
+      .get(result.lastInsertRowid);
+    res.status(201).json(user);
+  } catch (err) {
+    next(err);
   }
-
-  const password_hash = await bcrypt.hash(password, SALT_ROUNDS);
-  const result = db.prepare(
-    "INSERT INTO users (email, password_hash) VALUES (?, ?)"
-  ).run(email, password_hash);
-
-  const user = db.prepare("SELECT id, email, created_at FROM users WHERE id = ?")
-    .get(result.lastInsertRowid);
-  res.status(201).json(user);
 });
 
 // POST /login — verify credentials
-app.post("/login", async (req, res) => {
+app.post("/login", async (req, res, next) => {
   const { email, password } = req.body;
 
   if (!email || !password) {
     return res.status(400).json({ error: "email and password are required" });
   }
 
-  const user = db.prepare("SELECT * FROM users WHERE email = ?").get(email);
-  // Use the same error message whether the email is unknown or the password is wrong,
-  // to avoid leaking which emails are registered.
-  if (!user) {
-    return res.status(401).json({ error: "Invalid email or password" });
-  }
+  try {
+    const user = db.prepare("SELECT * FROM users WHERE email = ?").get(email);
+    // Use the same error message whether the email is unknown or the password is wrong,
+    // to avoid leaking which emails are registered.
+    if (!user) {
+      return res.status(401).json({ error: "Invalid email or password" });
+    }
 
-  const match = await bcrypt.compare(password, user.password_hash);
-  if (!match) {
-    return res.status(401).json({ error: "Invalid email or password" });
-  }
+    const match = await bcrypt.compare(password, user.password_hash);
+    if (!match) {
+      return res.status(401).json({ error: "Invalid email or password" });
+    }
 
-  req.session.userId = user.id;
-  res.json({ id: user.id, email: user.email });
+    req.session.userId = user.id;
+    res.json({ id: user.id, email: user.email });
+  } catch (err) {
+    next(err);
+  }
 });
 
 // POST /logout — destroy the session
@@ -244,6 +256,18 @@ app.get("/me", (req, res) => {
   const user = db.prepare("SELECT id, email FROM users WHERE id = ?").get(req.session.userId);
   if (!user) return res.status(401).json({ error: "Not logged in" });
   res.json(user);
+});
+
+// 404 — no route matched
+app.use((req, res) => {
+  res.status(404).json({ error: "Not found" });
+});
+
+// Global error handler — catches sync throws forwarded by Express and next(err) calls
+// The four-parameter signature is required for Express to treat this as an error handler.
+app.use((err, req, res, next) => {
+  console.error(err);
+  res.status(500).json({ error: "Internal server error" });
 });
 
 const PORT = process.env.PORT ?? 3000;
