@@ -508,7 +508,43 @@
 
     let cachedReminders = [];
 
+    // ---- Past-due notifications ----
+    // previousPastDueIds is null until the first render, so reminders that are
+    // already past due when the page loads don't immediately fire notifications.
+    let previousPastDueIds = null;
+    const notifiedReminderIds = new Set();
+
+    function checkPastDueNotifications(reminders) {
+      const currentPastDueIds = new Set(
+        reminders.filter((r) => !r.completed && isPastDue(r.date, r.time)).map((r) => r.id)
+      );
+
+      if (previousPastDueIds !== null && Notification.permission === "granted") {
+        for (const r of reminders) {
+          const justBecamePastDue = currentPastDueIds.has(r.id) && !previousPastDueIds.has(r.id);
+          if (justBecamePastDue && !notifiedReminderIds.has(r.id)) {
+            notifiedReminderIds.add(r.id);
+            sendPastDueNotification(r);
+          }
+        }
+      }
+
+      previousPastDueIds = currentPastDueIds;
+    }
+
+    function sendPastDueNotification(reminder) {
+      const notification = new Notification("Calybird reminder", {
+        body: reminder.title,
+      });
+      notification.addEventListener("click", () => {
+        window.focus();
+        notification.close();
+      });
+    }
+
     function renderReminders(reminders) {
+      checkPastDueNotifications(reminders);
+
       const sorted = [...reminders].sort((a, b) => {
         const groupDiff = sortGroup(a) - sortGroup(b);
         if (groupDiff !== 0) return groupDiff;
