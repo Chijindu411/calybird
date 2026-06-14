@@ -4,6 +4,7 @@ import Anthropic from "@anthropic-ai/sdk";
 import bcrypt from "bcrypt";
 import session from "express-session";
 import SqliteStoreFactory from "better-sqlite3-session-store";
+import { addSeconds, format } from "date-fns";
 import db from "./db.js";
 
 const SALT_ROUNDS = 12;
@@ -135,9 +136,30 @@ Respond with ONLY the JSON object — no explanation, no markdown, no extra text
       return res.status(422).json({ error: "Could not parse reminder", raw });
     }
 
+    let date, time;
+
+    if (reminder.kind === "absolute") {
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(reminder.date) || !/^\d{2}:\d{2}$/.test(reminder.time)) {
+        return res.status(422).json({ error: "Could not parse reminder", raw });
+      }
+      date = reminder.date;
+      time = reminder.time;
+    } else if (reminder.kind === "relative") {
+      if (!Number.isInteger(reminder.offset_seconds) || reminder.offset_seconds < 0) {
+        return res.status(422).json({ error: "Could not parse reminder", raw });
+      }
+      // addSeconds + format both operate in the server's local timezone,
+      // unlike toISOString() which converts to UTC and can shift the date.
+      const target = addSeconds(new Date(), reminder.offset_seconds);
+      date = format(target, "yyyy-MM-dd");
+      time = format(target, "HH:mm");
+    } else {
+      return res.status(422).json({ error: "Could not parse reminder", raw });
+    }
+
     const result = db.prepare(
       "INSERT INTO reminders (title, date, time, user_id) VALUES (?, ?, ?, ?)"
-    ).run(reminder.title, reminder.date, reminder.time, req.session.userId);
+    ).run(reminder.title, date, time, req.session.userId);
 
     const saved = db.prepare("SELECT * FROM reminders WHERE id = ?").get(result.lastInsertRowid);
     res.status(201).json(saved);
