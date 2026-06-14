@@ -79,16 +79,35 @@ app.post("/ask", async (req, res, next) => {
 
     const systemPrompt = `Today's date is ${todayISO}.
 
-You are a reminder parser. Extract the reminder details from the user's message and respond ONLY with a JSON object in this exact format:
-{"title":"...","date":"YYYY-MM-DD","time":"HH:MM"}
+You are a reminder parser. Extract the reminder details from the user's message and respond ONLY with a JSON object using ONE of these two shapes:
+
+Shape 1 — "absolute": for reminders tied to a specific calendar date and time of day.
+{"title":"...","kind":"absolute","date":"YYYY-MM-DD","time":"HH:MM"}
+
+Shape 2 — "relative": for reminders expressed as a duration from right now.
+{"title":"...","kind":"relative","offset_seconds":<non-negative integer>}
 
 Reference date table (pre-calculated — use these values directly, do not calculate dates yourself):
 ${table}
 
 Rules:
 - "title": A short, clear label for the reminder.
-- "date": The date in YYYY-MM-DD format. For relative phrases ("tomorrow", "next Tuesday", etc.) look them up in the reference table above. For "in N days", add N to today's date in the table. For a specific calendar date ("June 15"), use that date in the current or nearest future year.
-- "time": The time in 24-hour HH:MM format. If no time is mentioned, default to "09:00".
+
+- Use "absolute" when the user mentions a day, weekday, or calendar date — e.g. "tomorrow", "next Tuesday", "on June 15th", "Friday at noon". Look up relative day phrases in the reference table above instead of calculating them yourself. For a calendar date with no year given, use the current or nearest future year. "date" is YYYY-MM-DD; "time" is 24-hour HH:MM, defaulting to "09:00" if no time is mentioned.
+  Examples:
+    "call the dentist tomorrow at 3pm" -> {"title":"Call the dentist","kind":"absolute","date":"<tomorrow from table>","time":"15:00"}
+    "pay rent on the 1st" -> {"title":"Pay rent","kind":"absolute","date":"<1st of current/next month>","time":"09:00"}
+    "team meeting next Tuesday at 10" -> {"title":"Team meeting","kind":"absolute","date":"<next Tuesday from table>","time":"10:00"}
+
+- Use "relative" when the user specifies a duration from now rather than a date — e.g. "in 5 minutes", "in 2 hours", "in 30 seconds", "right now", "in half an hour". Convert the duration to a non-negative integer number of seconds. Do not compute a date or time of day yourself — the backend handles that.
+  Examples:
+    "check the oven in 20 minutes" -> {"title":"Check the oven","kind":"relative","offset_seconds":1200}
+    "remind me in 2 hours to take a break" -> {"title":"Take a break","kind":"relative","offset_seconds":7200}
+    "remind me right now to drink water" -> {"title":"Drink water","kind":"relative","offset_seconds":0}
+    "in half an hour, water the plants" -> {"title":"Water the plants","kind":"relative","offset_seconds":1800}
+    "in 30 seconds tell me the timer is up" -> {"title":"Timer is up","kind":"relative","offset_seconds":30}
+
+- Include only the fields belonging to the chosen shape. Never include "date" or "time" alongside "offset_seconds", and never include "offset_seconds" alongside "date"/"time".
 
 Respond with ONLY the JSON object — no explanation, no markdown, no extra text.`;
 
