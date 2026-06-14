@@ -338,6 +338,11 @@
       authView.style.display = "block";
       clearInterval(rerenderInterval);
       rerenderInterval = null;
+      // Reset notification tracking so a future session starts clean —
+      // otherwise a different user's reminder could share an ID already
+      // marked as notified/seeded from this session.
+      notifiedReminderIds.clear();
+      previousPastDueIds = null;
       // Reset to login panel with clean state
       signupPanel.style.display = "none";
       loginPanel.style.display = "block";
@@ -641,6 +646,13 @@
         document.getElementById("field-time").textContent  = formatTime(data.time);
         card.style.display = "block";
         input.value = "";
+
+        // A reminder created with a date/time already in the past shouldn't
+        // notify immediately — the user just typed it, they already know.
+        if (isPastDue(data.date, data.time)) {
+          notifiedReminderIds.add(data.id);
+        }
+
         loadReminders();
       } catch (err) {
         errorBox.textContent = err.message;
