@@ -663,6 +663,13 @@
       }
     });
 
+    // ---- Register service worker (needed for push notifications) ----
+    if ("serviceWorker" in navigator) {
+      navigator.serviceWorker.register("/sw.js").catch((err) => {
+        console.error("Service worker registration failed:", err);
+      });
+    }
+
     // ---- Boot: restore session if one already exists ----
     (async () => {
       try {
