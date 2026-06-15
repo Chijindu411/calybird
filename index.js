@@ -42,9 +42,10 @@ function requireAuth(req, res, next) {
   next();
 }
 
-// All /reminders and /ask routes require a valid session.
+// All /reminders, /ask, and /push routes require a valid session.
 app.use("/reminders", requireAuth);
 app.use("/ask", requireAuth);
+app.use("/push", requireAuth);
 
 function buildDateTable(localDateISO) {
   const [y, m, d] = localDateISO.split("-").map(Number);
@@ -304,6 +305,32 @@ app.get("/me", (req, res) => {
   const user = db.prepare("SELECT id, email FROM users WHERE id = ?").get(req.session.userId);
   if (!user) return res.status(401).json({ error: "Not logged in" });
   res.json(user);
+});
+
+// GET /push/vapid-public-key — the public key the frontend needs to subscribe
+app.get("/push/vapid-public-key", (req, res) => {
+  res.json({ publicKey: process.env.VAPID_PUBLIC_KEY });
+});
+
+// POST /push/subscribe — store a push subscription for the logged-in user
+app.post("/push/subscribe", (req, res) => {
+  const { subscription } = req.body;
+
+  if (
+    !subscription ||
+    typeof subscription.endpoint !== "string" ||
+    !subscription.keys ||
+    typeof subscription.keys.p256dh !== "string" ||
+    typeof subscription.keys.auth !== "string"
+  ) {
+    return res.status(400).json({ error: "A valid push subscription is required" });
+  }
+
+  db.prepare(
+    "INSERT OR IGNORE INTO push_subscriptions (user_id, subscription) VALUES (?, ?)"
+  ).run(req.session.userId, JSON.stringify(subscription));
+
+  res.status(201).json({ message: "Subscribed" });
 });
 
 // 404 — no route matched
