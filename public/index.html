@@ -133,6 +133,13 @@
       font-size: 0.85rem;
       flex-shrink: 0;
     }
+    #test-push-btn {
+      margin-bottom: 16px;
+      padding: 6px 14px;
+      font-size: 0.85rem;
+      background: #6b7280;
+    }
+    #test-push-btn:hover { background: #4b5563; }
 
     /* ---- Reminder card ---- */
     #reminder-card {
@@ -262,6 +269,8 @@
       <button id="enable-notifications-btn">Enable</button>
     </div>
 
+    <button id="test-push-btn">Send test notification</button>
+
     <textarea id="message-input" placeholder="e.g. Remind me to call the dentist tomorrow at 3pm"></textarea>
     <br />
     <button id="ask-btn">Set reminder</button>
@@ -309,6 +318,7 @@
     const remindersList = document.getElementById("reminders-list");
     const notificationBanner    = document.getElementById("notification-banner");
     const enableNotificationsBtn = document.getElementById("enable-notifications-btn");
+    const testPushBtn = document.getElementById("test-push-btn");
 
     // ---- View transitions ----
     let rerenderInterval = null;
@@ -370,6 +380,20 @@
         console.error("Push subscription failed:", err);
       }
     }
+
+    // ---- Temporary: send test push ----
+    testPushBtn.addEventListener("click", async () => {
+      testPushBtn.disabled = true;
+      testPushBtn.textContent = "Sending…";
+      try {
+        await fetch("/push/test", { method: "POST", credentials: "include" });
+      } catch (err) {
+        console.error("Test push failed:", err);
+      } finally {
+        testPushBtn.disabled = false;
+        testPushBtn.textContent = "Send test notification";
+      }
+    });
 
     function showAuthView() {
       appView.style.display = "none";

@@ -333,6 +333,37 @@ app.post("/push/subscribe", (req, res) => {
   res.status(201).json({ message: "Subscribed" });
 });
 
+// POST /push/test — send a test push to all of the user's stored subscriptions
+app.post("/push/test", async (req, res, next) => {
+  try {
+    const subs = db.prepare(
+      "SELECT id, subscription FROM push_subscriptions WHERE user_id = ?"
+    ).all(req.session.userId);
+
+    const payload = JSON.stringify({
+      title: "Calybird test",
+      body: "Push notifications are working!",
+    });
+
+    for (const row of subs) {
+      try {
+        await webpush.sendNotification(JSON.parse(row.subscription), payload);
+      } catch (err) {
+        if (err.statusCode === 410 || err.statusCode === 404) {
+          // Push service no longer recognizes this subscription — remove it.
+          db.prepare("DELETE FROM push_subscriptions WHERE id = ?").run(row.id);
+        } else {
+          console.error(err);
+        }
+      }
+    }
+
+    res.json({ message: "Test push sent" });
+  } catch (err) {
+    next(err);
+  }
+});
+
 // 404 — no route matched
 app.use((req, res) => {
   res.status(404).json({ error: "Not found" });
