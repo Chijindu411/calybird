@@ -5,6 +5,7 @@ import bcrypt from "bcrypt";
 import session from "express-session";
 import SqliteStoreFactory from "better-sqlite3-session-store";
 import { addSeconds, format } from "date-fns";
+import webpush from "web-push";
 import db from "./db.js";
 
 const SALT_ROUNDS = 12;
@@ -27,6 +28,12 @@ app.use(session({
 }));
 
 const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+
+webpush.setVapidDetails(
+  process.env.VAPID_SUBJECT,
+  process.env.VAPID_PUBLIC_KEY,
+  process.env.VAPID_PRIVATE_KEY
+);
 
 function requireAuth(req, res, next) {
   if (!req.session.userId) {
